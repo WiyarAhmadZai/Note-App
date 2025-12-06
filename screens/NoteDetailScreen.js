@@ -12,7 +12,7 @@ const NoteDetailScreen = ({ route, navigation }) => {
   const [content, setContent] = useState('');
   const [audioUri, setAudioUri] = useState(null);
   const [recording, setRecording] = useState(null);
-  const sound = useRef(new Audio.Sound());
+  const sound = useRef(isWeb ? null : new Audio.Sound());
   const [isPlaying, setIsPlaying] = useState(false);
 
   useEffect(() => {
