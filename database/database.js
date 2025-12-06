@@ -1,93 +1,112 @@
 import * as SQLite from 'expo-sqlite';
+import { Platform } from 'react-native';
 
-const db = SQLite.openDatabase('notes.db');
+const isWeb = Platform.OS === 'web';
+let db;
+
+if (!isWeb) {
+  db = SQLite.openDatabase('notes.db');
+}
+
+// Web-based storage using localStorage
+const getWebNotes = async () => {
+  const notesJSON = localStorage.getItem('notes');
+  return notesJSON ? JSON.parse(notesJSON) : [];
+};
+
+const setWebNotes = async (notes) => {
+  localStorage.setItem('notes', JSON.stringify(notes));
+};
 
 export const init = () => {
-  const promise = new Promise((resolve, reject) => {
-    db.transaction(tx => {
+  if (isWeb) {
+    return Promise.resolve();
+  }
+  return new Promise((resolve, reject) => {
+    db.transaction((tx) => {
       tx.executeSql(
         'CREATE TABLE IF NOT EXISTS notes (id INTEGER PRIMARY KEY NOT NULL, title TEXT NOT NULL, content TEXT NOT NULL);',
         [],
-        () => {
-          resolve();
-        },
-        (_, err) => {
-          reject(err);
-        }
+        resolve,
+        (_, err) => reject(err)
       );
     });
   });
-  return promise;
 };
 
-export const insertNote = (title, content) => {
-  const promise = new Promise((resolve, reject) => {
-    db.transaction(tx => {
+export const insertNote = async (title, content) => {
+  if (isWeb) {
+    const notes = await getWebNotes();
+    const newNote = { id: Date.now(), title, content };
+    notes.push(newNote);
+    await setWebNotes(notes);
+    return { insertId: newNote.id };
+  }
+  return new Promise((resolve, reject) => {
+    db.transaction((tx) => {
       tx.executeSql(
         'INSERT INTO notes (title, content) VALUES (?, ?);',
         [title, content],
-        (_, result) => {
-          resolve(result);
-        },
-        (_, err) => {
-          reject(err);
-        }
+        (_, result) => resolve(result),
+        (_, err) => reject(err)
       );
     });
   });
-  return promise;
 };
 
-export const fetchNotes = () => {
-  const promise = new Promise((resolve, reject) => {
-    db.transaction(tx => {
+export const fetchNotes = async () => {
+  if (isWeb) {
+    return getWebNotes();
+  }
+  return new Promise((resolve, reject) => {
+    db.transaction((tx) => {
       tx.executeSql(
         'SELECT * FROM notes;',
         [],
-        (_, result) => {
-          resolve(result.rows._array);
-        },
-        (_, err) => {
-          reject(err);
-        }
+        (_, result) => resolve(result.rows._array),
+        (_, err) => reject(err)
       );
     });
   });
-  return promise;
 };
 
-export const updateNote = (id, title, content) => {
-  const promise = new Promise((resolve, reject) => {
-    db.transaction(tx => {
+export const updateNote = async (id, title, content) => {
+  if (isWeb) {
+    let notes = await getWebNotes();
+    const noteIndex = notes.findIndex((note) => note.id === id);
+    if (noteIndex > -1) {
+      notes[noteIndex] = { id, title, content };
+      await setWebNotes(notes);
+    }
+    return;
+  }
+  return new Promise((resolve, reject) => {
+    db.transaction((tx) => {
       tx.executeSql(
         'UPDATE notes SET title = ?, content = ? WHERE id = ?;',
         [title, content, id],
-        () => {
-          resolve();
-        },
-        (_, err) => {
-          reject(err);
-        }
+        resolve,
+        (_, err) => reject(err)
       );
     });
   });
-  return promise;
 };
 
-export const deleteNote = (id) => {
-  const promise = new Promise((resolve, reject) => {
-    db.transaction(tx => {
+export const deleteNote = async (id) => {
+  if (isWeb) {
+    let notes = await getWebNotes();
+    notes = notes.filter((note) => note.id !== id);
+    await setWebNotes(notes);
+    return;
+  }
+  return new Promise((resolve, reject) => {
+    db.transaction((tx) => {
       tx.executeSql(
         'DELETE FROM notes WHERE id = ?;',
         [id],
-        () => {
-          resolve();
-        },
-        (_, err) => {
-          reject(err);
-        }
+        resolve,
+        (_, err) => reject(err)
       );
     });
   });
-  return promise;
 };
