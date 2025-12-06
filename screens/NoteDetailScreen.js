@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, TextInput, StyleSheet, TouchableOpacity, Text, Alert, Platform } from 'react-native';
-import { Audio } from 'expo-audio';
+import Audio from 'expo-audio';
 import Icon from 'react-native-vector-icons/FontAwesome';
 import { insertNote, updateNote, deleteNote, fetchNotes } from '../database/database';
 
