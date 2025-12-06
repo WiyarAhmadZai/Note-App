@@ -5,26 +5,36 @@ import { init } from './database/database';
 import NoteListScreen from './screens/NoteListScreen';
 import NoteDetailScreen from './screens/NoteDetailScreen';
 import { Text } from 'react-native';
+import * as Font from 'expo-font';
+import Icon from 'react-native-vector-icons/FontAwesome';
+
+// Pre-load the font
+Font.loadAsync({
+  'FontAwesome': require('react-native-vector-icons/Fonts/FontAwesome.ttf'),
+});
 
 const Stack = createNativeStackNavigator();
 
 export default function App() {
-  const [dbInitialized, setDbInitialized] = useState(false);
+  const [appReady, setAppReady] = useState(false);
 
   useEffect(() => {
-    init()
-      .then(() => {
-        setDbInitialized(true);
+    async function prepare() {
+      try {
+        await init();
         console.log('Database initialized');
-      })
-      .catch((err) => {
-        console.log('Database initialization failed');
-        console.log(err);
-      });
+      } catch (e) {
+        console.warn(e);
+      } finally {
+        setAppReady(true);
+      }
+    }
+
+    prepare();
   }, []);
 
-  if (!dbInitialized) {
-    return <Text>Initializing database...</Text>;
+  if (!appReady) {
+    return <Text>Loading...</Text>; // Or a proper splash screen
   }
 
   return (

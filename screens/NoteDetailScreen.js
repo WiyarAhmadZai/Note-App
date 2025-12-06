@@ -1,8 +1,10 @@
-import React, { useState, useEffect } from 'react';
-import { View, TextInput, StyleSheet, TouchableOpacity, Text, Alert } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, TextInput, StyleSheet, TouchableOpacity, Text, Alert, Platform } from 'react-native';
 import { Audio } from 'expo-av';
 import Icon from 'react-native-vector-icons/FontAwesome';
 import { insertNote, updateNote, deleteNote, fetchNotes } from '../database/database';
+
+const isWeb = Platform.OS === 'web';
 
 const NoteDetailScreen = ({ route, navigation }) => {
   const { noteId } = route.params || {};
@@ -10,7 +12,7 @@ const NoteDetailScreen = ({ route, navigation }) => {
   const [content, setContent] = useState('');
   const [audioUri, setAudioUri] = useState(null);
   const [recording, setRecording] = useState();
-  const [sound, setSound] = useState();
+  const sound = useRef(new Audio.Sound());
   const [isPlaying, setIsPlaying] = useState(false);
 
   useEffect(() => {
@@ -26,8 +28,8 @@ const NoteDetailScreen = ({ route, navigation }) => {
         ) : null
       ),
     });
-    return sound ? () => { sound.unloadAsync(); } : undefined;
-  }, [noteId, navigation, sound]);
+    return () => { sound.current.unloadAsync(); };
+  }, [noteId, navigation]);
 
   const loadNote = async () => {
     const notes = await fetchNotes();
@@ -40,6 +42,10 @@ const NoteDetailScreen = ({ route, navigation }) => {
   };
 
   const startRecording = async () => {
+    if (isWeb) {
+      Alert.alert('Unsupported', 'Voice recording is not available on the web.');
+      return;
+    }
     try {
       await Audio.requestPermissionsAsync();
       await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true });
@@ -51,6 +57,7 @@ const NoteDetailScreen = ({ route, navigation }) => {
   };
 
   const stopRecording = async () => {
+    if (!recording) return;
     setRecording(undefined);
     await recording.stopAndUnloadAsync();
     const uri = recording.getURI();
@@ -58,20 +65,26 @@ const NoteDetailScreen = ({ route, navigation }) => {
   };
 
   const playSound = async () => {
-    if (isPlaying) {
-      await sound.pauseAsync();
-      setIsPlaying(false);
-      return;
-    }
-    const { sound: newSound } = await Audio.Sound.createAsync({ uri: audioUri });
-    setSound(newSound);
-    await newSound.playAsync();
-    setIsPlaying(true);
-    newSound.setOnPlaybackStatusUpdate((status) => {
-      if (!status.isPlaying) {
+    try {
+      const { isLoaded, isPlaying: currentlyPlaying } = await sound.current.getStatusAsync();
+      if (currentlyPlaying) {
+        await sound.current.pauseAsync();
         setIsPlaying(false);
+        return;
       }
-    });
+      if (!isLoaded) {
+        await sound.current.loadAsync({ uri: audioUri });
+      }
+      await sound.current.playAsync();
+      setIsPlaying(true);
+      sound.current.setOnPlaybackStatusUpdate((status) => {
+        if (!status.isPlaying) {
+          setIsPlaying(false);
+        }
+      });
+    } catch (error) {
+      console.error('Failed to play sound', error);
+    }
   };
 
   const handleSave = async () => {
@@ -125,9 +138,11 @@ const NoteDetailScreen = ({ route, navigation }) => {
         <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
           <Text style={styles.saveButtonText}>Save Note</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.micButton} onPressIn={startRecording} onPressOut={stopRecording}>
-          <Icon name="microphone" size={24} color={recording ? 'red' : '#fff'} />
-        </TouchableOpacity>
+        {!isWeb && (
+          <TouchableOpacity style={styles.micButton} onPressIn={startRecording} onPressOut={stopRecording}>
+            <Icon name="microphone" size={24} color={recording ? 'red' : '#fff'} />
+          </TouchableOpacity>
+        )}
       </View>
     </View>
   );
