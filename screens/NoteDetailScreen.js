@@ -22,6 +22,25 @@ const NoteDetailScreen = ({ route, navigation }) => {
     return () => { sound.current.unloadAsync(); };
   }, [noteId]);
 
+  const handleDelete = React.useCallback(() => {
+    Alert.alert('Delete Note', 'Are you sure you want to delete this note?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await deleteNote(noteId);
+            navigation.goBack();
+          } catch (error) {
+            console.error(error);
+            Alert.alert('Error', 'Could not delete the note.');
+          }
+        },
+      },
+    ]);
+  }, [noteId, navigation]);
+
   useEffect(() => {
     navigation.setOptions({
       headerRight: () => (
@@ -117,25 +136,6 @@ const NoteDetailScreen = ({ route, navigation }) => {
       console.error(error);
       Alert.alert('Error', 'Could not save the note.');
     }
-  };
-
-  const handleDelete = () => {
-    Alert.alert('Delete Note', 'Are you sure you want to delete this note?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            await deleteNote(noteId);
-            navigation.goBack();
-          } catch (error) {
-            console.error(error);
-            Alert.alert('Error', 'Could not delete the note.');
-          }
-        },
-      },
-    ]);
   };
 
   return (
