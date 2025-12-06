@@ -25,7 +25,7 @@ export const init = () => {
   return new Promise((resolve, reject) => {
     db.transaction((tx) => {
       tx.executeSql(
-        'CREATE TABLE IF NOT EXISTS notes (id INTEGER PRIMARY KEY NOT NULL, title TEXT NOT NULL, content TEXT NOT NULL);',
+        'CREATE TABLE IF NOT EXISTS notes (id INTEGER PRIMARY KEY NOT NULL, title TEXT NOT NULL, content TEXT NOT NULL, audioUri TEXT);',
         [],
         resolve,
         (_, err) => reject(err)
@@ -34,10 +34,10 @@ export const init = () => {
   });
 };
 
-export const insertNote = async (title, content) => {
+export const insertNote = async (title, content, audioUri) => {
   if (isWeb) {
     const notes = await getWebNotes();
-    const newNote = { id: Date.now(), title, content };
+    const newNote = { id: Date.now(), title, content, audioUri };
     notes.push(newNote);
     await setWebNotes(notes);
     return { insertId: newNote.id };
@@ -45,8 +45,8 @@ export const insertNote = async (title, content) => {
   return new Promise((resolve, reject) => {
     db.transaction((tx) => {
       tx.executeSql(
-        'INSERT INTO notes (title, content) VALUES (?, ?);',
-        [title, content],
+        'INSERT INTO notes (title, content, audioUri) VALUES (?, ?, ?);',
+        [title, content, audioUri],
         (_, result) => resolve(result),
         (_, err) => reject(err)
       );
@@ -70,12 +70,12 @@ export const fetchNotes = async () => {
   });
 };
 
-export const updateNote = async (id, title, content) => {
+export const updateNote = async (id, title, content, audioUri) => {
   if (isWeb) {
     let notes = await getWebNotes();
     const noteIndex = notes.findIndex((note) => note.id === id);
     if (noteIndex > -1) {
-      notes[noteIndex] = { id, title, content };
+      notes[noteIndex] = { id, title, content, audioUri };
       await setWebNotes(notes);
     }
     return;
@@ -83,8 +83,8 @@ export const updateNote = async (id, title, content) => {
   return new Promise((resolve, reject) => {
     db.transaction((tx) => {
       tx.executeSql(
-        'UPDATE notes SET title = ?, content = ? WHERE id = ?;',
-        [title, content, id],
+        'UPDATE notes SET title = ?, content = ?, audioUri = ? WHERE id = ?;',
+        [title, content, audioUri, id],
         resolve,
         (_, err) => reject(err)
       );
