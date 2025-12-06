@@ -26,14 +26,6 @@ const NoteDetailScreen = ({ route, navigation }) => {
     }
   }, [noteId]);
 
-  useEffect(() => {
-    loadNote();
-  }, [loadNote]);
-
-  useEffect(() => {
-    return () => { sound.current?.unloadAsync(); };
-  }, []);
-
   const handleDelete = useCallback(() => {
     Alert.alert('Delete Note', 'Are you sure you want to delete this note?', [
       { text: 'Cancel', style: 'cancel' },
@@ -54,6 +46,8 @@ const NoteDetailScreen = ({ route, navigation }) => {
   }, [noteId, navigation]);
 
   useEffect(() => {
+    loadNote();
+
     navigation.setOptions({
       headerRight: () =>
         noteId ? (
@@ -62,7 +56,11 @@ const NoteDetailScreen = ({ route, navigation }) => {
           </TouchableOpacity>
         ) : null,
     });
-  }, [navigation, noteId, handleDelete]);
+
+    return () => {
+      sound.current?.unloadAsync();
+    };
+  }, [noteId, navigation, handleDelete, loadNote]);
 
   const handleSave = async () => {
     if (!title.trim()) {
