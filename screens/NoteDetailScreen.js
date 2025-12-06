@@ -70,8 +70,11 @@ const NoteDetailScreen = ({ route, navigation }) => {
       return;
     }
     try {
-      const method = noteId ? updateNote : insertNote;
-      await method(noteId || title, noteId ? title : content, noteId ? content : audioUri, noteId ? audioUri : undefined);
+      if (noteId) {
+        await updateNote(noteId, title, content, audioUri);
+      } else {
+        await insertNote(title, content, audioUri);
+      }
       navigation.goBack();
     } catch (error) {
       console.error('Could not save note:', error);
