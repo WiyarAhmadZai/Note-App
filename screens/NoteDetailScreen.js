@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, TextInput, StyleSheet, TouchableOpacity, Text, Alert, Platform } from 'react-native';
-import { Audio } from 'expo-av';
+import { Audio } from 'expo-audio';
 import Icon from 'react-native-vector-icons/FontAwesome';
 import { insertNote, updateNote, deleteNote, fetchNotes } from '../database/database';
 
@@ -11,7 +11,7 @@ const NoteDetailScreen = ({ route, navigation }) => {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [audioUri, setAudioUri] = useState(null);
-  const [recording, setRecording] = useState();
+  const [recording, setRecording] = useState(null);
   const sound = useRef(new Audio.Sound());
   const [isPlaying, setIsPlaying] = useState(false);
 
@@ -19,6 +19,10 @@ const NoteDetailScreen = ({ route, navigation }) => {
     if (noteId) {
       loadNote();
     }
+    return () => { sound.current.unloadAsync(); };
+  }, [noteId]);
+
+  useEffect(() => {
     navigation.setOptions({
       headerRight: () => (
         noteId ? (
@@ -28,8 +32,7 @@ const NoteDetailScreen = ({ route, navigation }) => {
         ) : null
       ),
     });
-    return () => { sound.current.unloadAsync(); };
-  }, [noteId, navigation]);
+  }, [navigation, noteId, handleDelete]);
 
   const loadNote = async () => {
     const notes = await fetchNotes();
@@ -47,10 +50,15 @@ const NoteDetailScreen = ({ route, navigation }) => {
       return;
     }
     try {
-      await Audio.requestPermissionsAsync();
-      await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true });
-      const { recording } = await Audio.Recording.createAsync(Audio.RECORDING_OPTIONS_PRESET_HIGH_QUALITY);
-      setRecording(recording);
+      const { status } = await Audio.requestPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission required', 'Please grant microphone permissions to record audio.');
+        return;
+      }
+      const newRecording = new Audio.Recording();
+      await newRecording.prepareToRecordAsync(Audio.RECORDING_OPTIONS_PRESET_HIGH_QUALITY);
+      await newRecording.startAsync();
+      setRecording(newRecording);
     } catch (err) {
       console.error('Failed to start recording', err);
     }
@@ -58,10 +66,14 @@ const NoteDetailScreen = ({ route, navigation }) => {
 
   const stopRecording = async () => {
     if (!recording) return;
-    setRecording(undefined);
-    await recording.stopAndUnloadAsync();
-    const uri = recording.getURI();
-    setAudioUri(uri);
+    try {
+      await recording.stopAndUnloadAsync();
+      const uri = recording.getURI();
+      setAudioUri(uri);
+      setRecording(null);
+    } catch (error) {
+      console.error('Failed to stop recording', error);
+    }
   };
 
   const playSound = async () => {
@@ -72,10 +84,12 @@ const NoteDetailScreen = ({ route, navigation }) => {
         setIsPlaying(false);
         return;
       }
-      if (!isLoaded) {
+      if (isLoaded) {
+        await sound.current.replayAsync();
+      } else {
         await sound.current.loadAsync({ uri: audioUri });
+        await sound.current.playAsync();
       }
-      await sound.current.playAsync();
       setIsPlaying(true);
       sound.current.setOnPlaybackStatusUpdate((status) => {
         if (!status.isPlaying) {
