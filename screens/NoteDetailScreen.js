@@ -7,7 +7,8 @@ import { insertNote, updateNote, deleteNote, fetchNotes } from '../database/data
 const isWeb = Platform.OS === 'web';
 
 const NoteDetailScreen = ({ route, navigation }) => {
-  const { noteId } = route.params || {};
+  const { noteId: initialNoteId } = route.params || {};
+  const [note, setNote] = useState(null);
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [audioUri, setAudioUri] = useState(null);
@@ -15,18 +16,24 @@ const NoteDetailScreen = ({ route, navigation }) => {
   const sound = useRef(isWeb ? null : new Audio.Sound());
   const [isPlaying, setIsPlaying] = useState(false);
 
-  const loadNote = useCallback(async () => {
-    if (!noteId) return;
-    const notes = await fetchNotes();
-    const note = notes.find((n) => n.id === noteId);
-    if (note) {
-      setTitle(note.title);
-      setContent(note.content);
-      setAudioUri(note.audioUri);
-    }
-  }, [noteId]);
+  useEffect(() => {
+    const loadNote = async () => {
+      if (initialNoteId) {
+        const notes = await fetchNotes();
+        const foundNote = notes.find((n) => n.id === initialNoteId);
+        if (foundNote) {
+          setNote(foundNote);
+          setTitle(foundNote.title);
+          setContent(foundNote.content);
+          setAudioUri(foundNote.audioUri);
+        }
+      }
+    };
+    loadNote();
+  }, [initialNoteId]);
 
   const handleDelete = useCallback(() => {
+    if (!note) return;
     Alert.alert('Delete Note', 'Are you sure you want to delete this note?', [
       { text: 'Cancel', style: 'cancel' },
       {
@@ -34,7 +41,7 @@ const NoteDetailScreen = ({ route, navigation }) => {
         style: 'destructive',
         onPress: async () => {
           try {
-            await deleteNote(noteId);
+            await deleteNote(note.id);
             navigation.goBack();
           } catch (error) {
             console.error('Could not delete note:', error);
@@ -43,14 +50,12 @@ const NoteDetailScreen = ({ route, navigation }) => {
         },
       },
     ]);
-  }, [noteId, navigation]);
+  }, [note, navigation]);
 
   useEffect(() => {
-    loadNote();
-
     navigation.setOptions({
       headerRight: () =>
-        noteId ? (
+        note ? (
           <TouchableOpacity onPress={handleDelete} style={styles.headerButton}>
             <Text style={styles.headerButtonText}>Delete</Text>
           </TouchableOpacity>
@@ -60,7 +65,7 @@ const NoteDetailScreen = ({ route, navigation }) => {
     return () => {
       sound.current?.unloadAsync();
     };
-  }, [noteId, navigation, handleDelete, loadNote]);
+  }, [navigation, note, handleDelete]);
 
   const handleSave = async () => {
     if (!title.trim()) {
