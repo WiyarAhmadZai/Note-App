@@ -1,23 +1,21 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
-import { useIsFocused } from '@react-navigation/native';
+import { useFocusEffect } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/FontAwesome';
 import { fetchNotes } from '../database/database';
 
 const NoteListScreen = ({ navigation }) => {
   const [notes, setNotes] = useState([]);
-  const isFocused = useIsFocused();
 
-  useEffect(() => {
-    if (isFocused) {
+  useFocusEffect(
+    useCallback(() => {
+      const loadNotes = async () => {
+        const loadedNotes = await fetchNotes();
+        setNotes(loadedNotes.reverse());
+      };
       loadNotes();
-    }
-  }, [isFocused]);
-
-  const loadNotes = async () => {
-    const loadedNotes = await fetchNotes();
-    setNotes(loadedNotes);
-  };
+    }, [])
+  );
 
   const renderNote = ({ item }) => (
     <TouchableOpacity
